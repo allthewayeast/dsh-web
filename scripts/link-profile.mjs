@@ -123,12 +123,19 @@ export function bundlePatchChildNames(patchText) {
 function main() {
   const DRY = process.argv.includes('--dry-run')
 
+  // The loader resolves family rows from the profile shared node_modules
+  // layer. Official installs place it at ~/.dsh/profiles/node_modules; custom
+  // DSH_HOME environments (e.g. E:\AppData\YMZ\.dsh-web) keep it under
+  // $DSH_HOME/profiles/node_modules instead, so honor that override.
   const HOME = process.env.HOME || homedir()
   if (!HOME) {
     report('cannot determine home directory (HOME is unset and os.homedir() is empty)')
     process.exit(1)
   }
-  const PROFILES_NM = join(HOME, '.dsh', 'profiles', 'node_modules')
+  const DSH_HOME = process.env.DSH_HOME
+  const PROFILES_NM = DSH_HOME
+    ? join(DSH_HOME, 'profiles', 'node_modules')
+    : join(HOME, '.dsh', 'profiles', 'node_modules')
   const LINK_DIR = join(PROFILES_NM, FAMILY_SCOPE)
 
   const packages = familyPackages()
