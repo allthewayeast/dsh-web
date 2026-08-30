@@ -198,6 +198,41 @@ dsh web
 > 若 npm 版本滞后或损坏会出现「宿主已挂载但 UI 不显示」，此时先用 `node scripts/link-profile.mjs`
 > 让全部子包走仓库构建产物。
 
+### SDK cohort 本机路径说明
+
+本仓库针对 DSH `0.1.2-alpha.1` 的开发者预览 SDK 尚未发布到 npm，
+`pnpm-workspace.yaml` 的 `overrides` 块把全部 `@deepseek-ai/*` 指向本机的 cohort tarball store
+（一个 `file:` 目录），`pnpm-lock.yaml` 同步记录这些路径与 integrity。
+
+**作者机器**（`zhu1090093659/dsh-web` 上游）把 store 放在 `/Users/zcl/.dsh-cohorts/...`；
+**本 fork**（`allthewayeast/dsh-web`）的 `my-changes` 分支按作者的 Windows 环境改为
+`E:/AppData/YMZ/.dsh-cohorts/0.1.2-alpha.1/...`。这些路径是**本机绝对路径**，在其他机器上
+`pnpm install` 会因 store 缺失而失败。
+
+其他机器适配方法（二选一）：
+
+- **重新生成 cohort store**：先有一个官方 `deepseek-harness` checkout（`dsh-v0.1.2-alpha.1`
+  tag，commit `cd5ef814`），然后运行仓库自带的构建脚本生成全部 249 个 tarball：
+
+  ```sh
+  # 通用版（所有平台，走官方 release:pack，Windows 上可能不可用）
+  node scripts/build-cohort-tarballs.mjs --harness-dir <harness> --store-dir <store>
+
+  # Windows 版（直接用 pnpm pack 逐包打包，Windows 上可靠）
+  node scripts/build-cohort-windows.mjs --harness-dir <harness> --store-dir <store>
+  ```
+
+  脚本会生成 tarball、规范化 peerDependencies，并把 `pnpm-lock.yaml` 的路径与 integrity
+  重写到本机 store。
+
+- **手动替换路径**：把 `pnpm-workspace.yaml` / `pnpm-lock.yaml` 里的
+  `file:/Users/zcl/.dsh-cohorts/`（或 `E:/AppData/YMZ/.dsh-cohorts/`）替换成你本机的 store
+  路径，再 `node scripts/refresh-lockfile-integrity.mjs --store <store>` 刷新 integrity。
+
+> 这两个脚本（`build-cohort-windows.mjs`、`refresh-lockfile-integrity.mjs`）以及
+> `link-profile.mjs` 的 `DSH_HOME` 支持是 `my-changes` 分支相对上游新增/改进的通用能力，
+> 欢迎回馈上游。
+
 ### 从旧聚合包升级
 
 已有 profile 如果仍挂在 `@linxin666/dsh-web-ui-all`，不需要手动先删旧包再装新包。启用 Doctor 后，Doctor Launcher 会在启动 DSH 前检测该旧聚合包并自动执行事务迁移：先安装 `@linxin666/dsh-web-all`，再移除旧包，保留原有 `web-ui-*` 行和 bundle 顺序，并通过 `--dump-config` 预检后才继续启动。用户通过 `dsh-doctor launch` 或 Doctor 服务启动即可；裸 `dsh web` 不经过该 preflight。
